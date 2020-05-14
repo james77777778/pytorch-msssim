@@ -4,14 +4,16 @@ import time
 from PIL import Image
 from skimage.metrics import structural_similarity
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
-os.environ['CUDA_VISIBLE_DEVICES']='' # disable CUDA for tf
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-
 from pytorch_msssim import ssim, ms_ssim
 import torch
 import tensorflow as tf
+
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+os.environ['CUDA_VISIBLE_DEVICES']='' # disable CUDA for tf
+
 
 if __name__ == '__main__':
     print("Downloading test image...")
@@ -33,35 +35,48 @@ if __name__ == '__main__':
     print("             Test SSIM")
     print('===================================')
     print("====> Single Image")
-    print("Repeat %d times"%(N_repeat))
-    # params = torch.nn.Parameter( torch.ones(img.shape[2], img.shape[0], img.shape[1]), requires_grad=True ) # C, H, W
+    print("Repeat %d times" % (N_repeat))
+    # C, H, W
+    # params = torch.nn.Parameter(
+    #     torch.ones(img.shape[2], img.shape[0], img.shape[1]),
+    #     requires_grad=True)
     for sigma in range(0, 101, 10):
         noise = sigma * np.random.rand(*img.shape)
-        img_noise = (img + noise).astype(np.float32).clip(0,255)
-        
-        img_tf = tf.expand_dims( tf.convert_to_tensor(img),0 )
-        img_noise_tf = tf.expand_dims( tf.convert_to_tensor(img_noise),0 )
+        img_noise = (img + noise).astype(np.float32).clip(0, 255)
+
+        img_tf = tf.expand_dims(tf.convert_to_tensor(img), 0)
+        img_noise_tf = tf.expand_dims(tf.convert_to_tensor(img_noise), 0)
         begin = time.time()
 
         for _ in range(N_repeat):
-            ssim_tf = tf.image.ssim(img_tf, img_noise_tf, 255, filter_size=11, filter_sigma=1.5, k1=0.01, k2=0.03)
+            ssim_tf = tf.image.ssim(
+                img_tf, img_noise_tf, 255, filter_size=11, filter_sigma=1.5,
+                k1=0.01, k2=0.03)
         time_tf = (time.time()-begin) / N_repeat
 
         begin = time.time()
         for _ in range(N_repeat):
-            ssim_skimage = structural_similarity(img, img_noise, win_size=11, multichannel=True,
-                                    sigma=1.5, data_range=255, use_sample_covariance=False, gaussian_weights=True)
+            ssim_skimage = structural_similarity(
+                img, img_noise, win_size=11, multichannel=True, sigma=1.5,
+                data_range=255, use_sample_covariance=False,
+                gaussian_weights=True)
         time_skimage = (time.time()-begin) / N_repeat
 
-        img_torch = torch.from_numpy(img).unsqueeze(0).permute(0, 3, 1, 2)  # 1, C, H, W
-        img_noise_torch = torch.from_numpy(img_noise).unsqueeze(0).permute(0, 3, 1, 2)
+        # 1, C, H, W
+        img_torch = torch.from_numpy(img).unsqueeze(0).permute(0, 3, 1, 2)
+        img_noise_torch = (
+            torch.from_numpy(img_noise)
+            .unsqueeze(0)
+            .permute(0, 3, 1, 2)
+        )
 
         img_batch.append(img_torch)
         img_noise_batch.append(img_noise_torch)
 
         begin = time.time()
         for _ in range(N_repeat):
-            ssim_torch = ssim(img_noise_torch, img_torch, win_size=11, data_range=255)
+            ssim_torch = ssim(img_noise_torch, img_torch, win_size=11,
+                              data_range=255)
         time_torch = (time.time()-begin) / N_repeat
 
         ssim_torch = ssim_torch.numpy()
@@ -140,7 +155,3 @@ if __name__ == '__main__':
     msssim_tf_batch = tf.image.ssim_multiscale( img_noise_batch, img_batch, 255, filter_size=11, filter_sigma=1.5, k1=0.01, k2=0.03  )
     assert np.allclose(msssim_torch_batch.numpy().reshape(-1), msssim_tf_batch.numpy().reshape(-1), atol=5e-4)
     print("Pass")
-
-
-
-

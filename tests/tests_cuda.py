@@ -1,12 +1,16 @@
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-from pytorch_msssim import *
+from pytorch_msssim import SSIM
 import torch
+
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 s = SSIM(data_range=1.)
 
-a = torch.randint(0, 255, size=(20, 3, 256, 256), dtype=torch.float32).cuda() / 255.
+a = (torch.randint(0, 255, size=(20, 3, 256, 256), dtype=torch.float32)
+     .cuda()
+     / 255.)
 b = a * 0.5
 a.requires_grad = True
 b.requires_grad = True
